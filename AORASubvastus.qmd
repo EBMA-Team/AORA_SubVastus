@@ -1,0 +1,1068 @@
+---
+title: "Subvastus cohort analysis"
+author: "Corey Scholes"
+affiliation: "EBM Analytics"
+version: 1.0
+type: "website"
+number-sections: true
+number-depth: 3
+date: "2026-Mar-10"
+date-modified: "2026-Mar-10"
+
+bibliography: AORAGov references.bib
+
+editor:
+  visual
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    link-external-newwindow: true
+    link-external-icon: true
+    
+    format:
+  docx:
+    toc: true
+    number-sections: true
+
+    
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# Preamble
+
+The following analysis is a report on the activity, quality and data contained in the AORA registry.
+
+```{r}
+#| label: load-packages
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(# Load required packages
+  "patchwork",
+  "nnet",
+  "mgcv",
+  "ggforce",
+  "ggdag",
+  "ggmap",
+  "ggsurvfit",
+  "geosphere",
+  "dplyr",
+  "flextable",
+  "litedown",
+  "grateful",
+  "modelsummary",
+  "quantreg",
+  "readr",
+  "knitr",
+  "cardx",
+  "forcats",
+  "gargle",
+  "googledrive",
+  "googlesheets4",
+  "openxlsx2",
+  "tidyverse",
+  "tidymodels",
+  "lubridate",
+  "consort",
+  "gtsummary",
+  "survival",
+  "ggplot2",
+  "ggdist",
+  "ggfortify",
+  "mice",
+  "marginaleffects",
+  "naniar",
+  "quantreg",
+  "broom",
+  "epoxy",
+  "broom.helpers",
+  "stringr"
+  )
+  
+  
+```
+
+Access to the AORA datasets was pre-authorised.
+
+```{r}
+#| label: auth2
+#| echo: false
+
+options(
+  gargle_oauth_cache = ".secrets",
+  gargle_oauth_email = TRUE
+)
+
+googledrive::drive_auth(
+  cache = ".secrets", 
+  email = TRUE
+  )
+```
+
+A function was generated to retrieve files to call on later in the analysis for processing data imports.
+
+```{r}
+#| label: folder
+#| echo: false
+
+base_folder_id1 <- "10ThtWn4-IIOuTYPbNrhJkL6yBuPQjk5S"
+
+
+
+```
+
+```{r}
+get_specific_snapshot <- function(folder_name, base_folder_id = base_folder_id1) {
+  tryCatch({
+    # Check if the folder exists in the base directory
+    folder <- googledrive::drive_ls(as_id(base_folder_id), pattern = paste0("^", folder_name, "$"))
+    
+    if(nrow(folder) == 0) {
+      stop(paste("Folder", folder_name, "not found"))
+    }
+    
+    # Find the snapshot file in the specified folder
+    snapshot_file <- googledrive::drive_ls(
+      folder$id, 
+      pattern = "Registry data snapshot\\.xlsx$"
+    )
+    
+    if(nrow(snapshot_file) == 0) {
+      stop("No snapshot file found in specified folder")
+    }
+    
+    # Return both pieces of information as a list
+    return(list(
+      snapshot = snapshot_file,
+      folder_name = folder$name
+    ))
+    
+  }, error = function(e) {
+    stop(paste("Error finding specified snapshot:", e$message))
+  })
+}
+```
+
+Data was retrieved from live database tables. Source files were specified and stored as global variables to call on in further functions.
+
+```{r}
+#| label: live-table
+#| echo: false
+
+SheetIDs <- list(
+DbSS = "https://docs.google.com/spreadsheets/d/1fhW1LJbsdvkA7u-z1IGgI2qHwiOWXP6RMRH8-cgPXU8/edit",
+IntHistory = "https://docs.google.com/spreadsheets/d/1YBYcxJtRIoH0rD87bWCBvIFiKQp-b-JmklWPOh_-wDY/edit"
+)
+
+# Treatments Masterlist - Timestamp is > Registry Start date (gsuite)
+
+```
+
+```{r}
+#| label: read-tables
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+
+
+ComplicTable <- googlesheets4::read_sheet(
+  ss = SheetIDs$DbSS,
+  sheet = "Complications",
+  col_names = TRUE,
+  col_types = "TccDccDc"
+  )
+
+
+#To match to acctData
+PatientTable <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Patient",
+  range = "A7:P",
+  col_names = FALSE,
+  col_types = "DccccDcccDciccci"
+  )
+
+
+Patient_Col <- c(
+  "PatientCreationDate",
+  "PatientID",
+  "LastName",
+  "FirstName",
+  "AlternateID",
+  "DateOfBirth",
+  "Sex",
+  "RegistryStatus",
+  "RegistryStatusNotes",
+  "DateRegistryStatus",
+  "NotificationMethod",
+  "NoTreatmentRecords",
+  "Email",
+  "Phone",
+  "PostCode",
+  "TrueNoTreatments"
+)
+
+colnames(PatientTable) <- Patient_Col
+
+
+MonitorPlan <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Monitor Module",
+  range = "A1:O",
+  col_names = TRUE,
+  col_types = "ccccDTtincTccii"
+  )
+
+
+MonitorLog <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "MonitorModuleLog",
+  range = "A1:K",
+  col_names = TRUE,
+  col_types = "Tcicccccccc"
+  )
+
+MonitorResponse <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Monitoring",
+  range = "A1:Q",
+  col_names = TRUE,
+  col_types = "TccccccccccnccDic"
+  )
+
+IntHistory <- googlesheets4::range_read(
+  ss = SheetIDs$IntHistory,
+  sheet = "AORA - Medical History_RawData", 
+  range = "A4:CO",
+  col_names = FALSE
+  )
+
+IntHistoryCol <- googlesheets4::range_read(
+  ss = SheetIDs$IntHistory,
+  sheet = "AORA - Medical History_RawData", 
+  range = "A3:CO3",
+  col_names = FALSE
+  )
+
+ colnames(IntHistory) <- IntHistoryCol
+
+```
+
+## Retrieve MMM
+
+```{r}
+
+# ── 1. Download the POA 2021 × MMM 2023 concordance ──────────────────────────
+# Direct xlsx from data.gov.au (Dept of Health and Aged Care, CC BY 2.5 AU)
+# https://www.data.gov.au/data/dataset/postal-areas-2021-by-modified-monash-model-2023
+ 
+mmm_url <- "https://data.gov.au/data/dataset/9c4e8fab-e9c3-4728-80a8-e59643f258a5/resource/04ed31ba-d48b-437c-9279-f4b788b9dd90/download/poa_21-mmm_23.xlsx"
+
+tmp <- tempfile(fileext = ".xlsx")
+download.file(mmm_url, destfile = tmp, mode = "wb")
+
+ concordance_raw <- openxlsx2::wb_to_df(tmp, start_row = 8, start_col = 2, skip_empty_cols = TRUE)
+
+# ── 2. Inspect and clean the concordance ─────────────────────────────────────
+# Preview structure first — column names may vary; check with:
+ glimpse(concordance_raw)
+
+MMMPostcode <- concordance_raw |>
+  rename_with(str_to_lower) |>
+  rename(
+    postcode  = "poa 2021 code",
+    mmm_code  = "mmm 2023"
+  ) |>
+  summarise(
+    mmm_code       = max(mmm_code, na.rm = TRUE),
+    mmm_ambiguous  = n() > 1,
+    .by = postcode
+  )  |>
+  mutate(
+    postcode = as.character(postcode),
+    mmm_code = as.integer(mmm_code),
+    mmm_label = case_when(
+      mmm_code == 1 ~ "Metropolitan",
+      mmm_code == 2 ~ "Regional centre",
+      mmm_code == 3 ~ "Large rural town",
+      mmm_code == 4 ~ "Medium rural town",
+      mmm_code == 5 ~ "Small rural town",
+      mmm_code == 6 ~ "Remote community",
+      mmm_code == 7 ~ "Very remote community",
+      .default      = NA_character_
+    )
+  ) |>
+  select(postcode, mmm_code, mmm_label, mmm_ambiguous)
+
+```
+
+```{r}
+
+
+IntHistory1 <- IntHistory |> dplyr::select(
+  FormIDMedicalHistory,
+  EducationLevel,
+  SmokingStatus,
+  AlcoholConsumption,
+  ActivityDuration,
+  SymptomOnset,
+  SymptomDuration
+) |> rename(
+  FormID = "FormIDMedicalHistory"
+) |> distinct(
+  FormID,
+  .keep_all = TRUE
+  ) |> mutate(
+    TreatmentID = str_extract(FormID, "^\\d+\\.\\d+"),
+    SymptomDuration1 = if_else(
+      as.numeric(str_extract(SymptomDuration, "\\d+")) >1000,
+      NA,
+      as.numeric(str_extract(SymptomDuration, "\\d+"))
+  )) 
+
+```
+
+```{r}
+
+KneeIntraop <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Knee Arthritis Treatments", 
+  range = "A2:X",
+  col_names = TRUE, 
+  col_types = "Tccccccccccccccccccccncc"
+  )
+```
+
+A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (01-Dec-2025).
+
+```{r}
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+# To get a snapshot from a specific folder (e.g., "20230415")
+specific_snapshot <- get_specific_snapshot("20251130")
+
+
+```
+
+```{r}
+
+temp_file1 <- tempfile(fileext = ".xlsx")
+drive_download(
+  file = specific_snapshot$snapshot$id,
+  path = temp_file1,
+  overwrite = TRUE
+)
+
+# Correction to reset back to excel origin
+DaysDiff <- as.numeric(as.duration(interval(ymd("1899-12-30"), ymd("1970-01-01"))),"days")
+
+
+Snapshot <- openxlsx2::wb_to_df(
+  temp_file1,
+  sheet = "Combined",
+  colNames = TRUE,
+  detectDates = TRUE
+  ) |> mutate(
+    PatientID = stringr::str_split_i(TreatmentID,"\\.",1),
+     SurgicalTreatment2 = case_when(
+       stringr::str_detect(str_to_lower(EBMAComment),"surgery recommended") &
+       stringr::str_detect(str_to_lower(SurgicalTreatment), "non") ~ "Surgery recommended",
+       stringr::str_detect(str_to_lower(SurgicalTreatment), "non", negate = TRUE) ~ "Surgical",
+       stringr::str_detect(str_to_lower(SurgicalTreatment), "non") ~ "Non-Surgical"
+  )
+  ) |> unite(
+  col = "CombID",
+  sep = ".",
+  c("PatientID","AffectedSide"),
+  remove = FALSE
+)
+
+
+
+
+STROBEInput <- openxlsx2::wb_to_df(
+  temp_file1,
+  sheet = "Strobe_Input",
+  colNames = TRUE,
+  detectDates = TRUE
+  )
+
+```
+
+# Context
+
+The Arthroplasty Outcomes in Regional Australia (AORA) registry has been in operation since June 2020, collecting KneeArthritis and HipArthritis presentations to a private clinic in Grafton, NSW. The setup of the registry is detailed on the [registry wiki](https://sites.google.com/ebma.com.au/aora-registry-wiki/home). The registry started with two surgeons contributing with one surgeon stopping participation in December 2022.
+
+# Recruitment Flow
+
+Flowcharts as per STROBE [@Vandenbroucke2007] and RECORD [@Benchimol2015] guidelines were generated for treatments enrolled into the Registry. Followup was set to eligibility at 3months followup.
+
+Need to identify GMKSubset to flag in STROBEInput for flowchart
+
+```{r}
+
+CurrentDate <- as.character("20251130")
+
+
+STROBEFlow <- STROBEInput |> left_join(
+  KneeIntraop |> dplyr::select(
+    -Timestamp
+  ),
+  join_by(TreatmentID == "Treatment ID")
+) |> dplyr::left_join(# Join with relevant columns from Snapshot
+    Snapshot |> 
+      dplyr::select(
+        TreatmentID,
+        CombID,
+        EligibleAtPreop,
+        EligibleAtx3months,
+        SurgicalTreatment2
+      ) |> 
+      # Convert all date columns to date format
+      dplyr::mutate(
+        across(contains("Date"), lubridate::ymd)
+      ),
+    by = "TreatmentID"
+  ) |> dplyr::mutate(
+    TreatmentStatus2 = if_else(
+          TreatmentStatus == "No further followup" & is.na(DateTreatment),
+          "Archived",
+          TreatmentStatus
+  )
+  ) |> dplyr::mutate(
+    exclusion1 = case_when(
+    RegistryCohortName != "KneeArthritis" ~ "Diagnosis not of interest",
+    (SurgicalTreatment2 != "Surgical" | is.na(SurgicalTreatment2) | str_detect(TreatmentStatus,"Pending")) & RegistryCohortName == "KneeArthritis" ~ "Not a surgical treatment",
+     SurgicalTreatment2 == "Surgical" & RegistryCohortName == "KneeArthritis" & stringr::str_detect(RegistryStatus,"Opt-out", negate = TRUE) & TreatmentType != "Primary" ~ "Non-primary procedure",
+    (SurgicalTreatment2 != "Surgical" | !is.na(SurgicalTreatment2)) & RegistryCohortName == "KneeArthritis" & stringr::str_detect(RegistryStatus,"Opt-out") ~ "Patient Opt-Out",
+    #TreatmentStatus2 == "Archived" ~ "Record archived",
+    .default = NA_character_
+  ),
+  induction = if_else(
+    is.na(exclusion1),
+    TreatmentID,
+    NA_character_
+  ),
+
+  
+  
+exclusion2 = case_when(
+  !is.na(induction) & stringr::str_detect(Hardware, "Incorrect") ~ "Not hardware of interest",
+  !is.na(induction) & Hardware == "No dataNo data" ~ "No data entered"
+),
+subjid_dosed = if_else(
+    is.na(exclusion1) & is.na(exclusion2),
+    TreatmentID,
+    NA_character_
+),
+arm = case_when(
+is.na(exclusion1) & is.na(exclusion2) & DateTreatment <= ymd("2022-Nov-02") ~ "Pre",
+is.na(exclusion1) & is.na(exclusion2) & DateTreatment >= ymd("2022-Nov-02") ~ "Post"
+),
+arm = forcats::fct(
+  arm,
+  levels = c("Pre","Post")
+),
+followup = if_else(
+  !is.na(arm),
+  TreatmentID,
+  NA_character_
+),
+lost_followup = if_else(
+  EligibleAtx3months != "Yes",
+  "Not eligible for followup",
+  NA_character_
+),
+mitt = if_else(
+    !is.na(followup) & is.na(lost_followup),
+    TreatmentID,
+    NA_character_
+)
+) |> dplyr::rename(
+  trialno = "TreatmentID",
+  arm3 = "RegistryCohortName"
+)
+
+```
+
+```{r}
+
+STROBEReview <- STROBEFlow |> group_by(arm) |> summarise(CohortCount = n()) |> arrange(desc(CohortCount))
+
+```
+
+```{r}
+#| label: fig-strobe-cohort1
+#| fig-cap: "Flowchart of extraction and followup of surgical sample from the Registry"
+
+
+STROBEPlot1 <- consort_plot(
+  data = STROBEFlow,
+ orders = c(
+   trialno = "Population",
+   exclusion1 = "Ineligible for TKA",
+   induction = "Surgical pool",
+   exclusion2 = "Excluded",
+   subjid_dosed = "Total cohort",
+   arm = "Grouping",
+   lost_followup = "Not eligible for followup",
+   mitt = "Followup Analysis"
+   ),
+ side_box = c(
+   "exclusion1",
+   "exclusion2",
+   "lost_followup"
+   ),
+ allocation = "arm",
+ cex = 0.6
+)
+
+knitr::knit_print(STROBEPlot1)
+
+```
+
+Cumulative recruitment over time was plotted from Registry inception to the present.
+
+```{r}
+#| label: fig-progress
+#| fig-cap: "Cumulative cohort recruitment within the registry from inception to present"
+
+target_date <- lubridate::ymd("2022-Nov-02")  # Set your date here
+
+RecordCount <- dplyr::summarise(
+  STROBEFlow |>  dplyr::filter(
+    !is.na(followup)
+    ),
+  Count = n(),
+  .by = PatientCreationDate
+) |> arrange(
+  PatientCreationDate
+) |> dplyr::mutate(
+  CumulativeCount = cumsum(Count),
+  PatientCreationNum = as.numeric(PatientCreationDate)
+  ) |> filter(
+    !(PatientCreationDate < ymd("20160701"))
+   
+  )
+
+cumulative_plot <- ggplot(RecordCount, aes(x = PatientCreationDate, y = CumulativeCount)) +
+  geom_line(color = "#2c3e50", linewidth = 1) +
+  # Add the spline fit with confidence interval
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), 
+              color = "#e74c3c", linewidth = 1.2, se = TRUE, fill = "#e74c3c", alpha = 0.2) +
+  geom_point(color = "#3498db", size = 1) +
+  
+  geom_vline(xintercept =  target_date,
+             linetype = "dashed", color = "#27ae60", linewidth = 0.8) +
+  annotate("text", x = target_date, y = Inf,
+           label = "Introduction of Flex bearing", vjust = 1.5, hjust = -0.1,
+           color = "#27ae60", fontface = "bold", size = 3.5) +
+  # Add labels and title
+  labs(
+    x = "Date",
+    y = "Cumulative Number of Cases",
+    #caption = "Data source: STROBEFlow3"
+  ) +
+  # Improve the theme and formatting
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+# Print the plot
+knitr::knit_print(cumulative_plot)
+
+
+```
+
+# Baseline and Demographics
+
+```{r}
+GMKMaster <- Snapshot |> filter(
+  TreatmentID %in% STROBEFlow$followup  
+) |> left_join(
+  IntHistory1 |> dplyr::select(
+    TreatmentID,
+    EducationLevel:SymptomOnset,
+    SymptomDuration1
+  ),
+  by = "TreatmentID"
+) |> left_join(
+  MMMPostcode,
+  join_by(Postcode == postcode),
+  relationship = "many-to-one"
+) |> mutate(
+  across(
+      ComorbHeartDisease_Preop:ComorbOtherMedicalCondition_Preop,
+      ~ case_when(
+        str_detect(.x, "not") ~ 0,
+        str_detect(.x, "not|activities|treatment", negate = TRUE) ~ 1,
+        str_detect(.x, "treatment") ~ 2,
+        str_detect(.x, "activities")~ 3
+      )
+    ),
+    SACQ_score = if_else(
+      rowSums(!is.na(pick(ComorbHeartDisease_Preop:ComorbOtherMedicalCondition_Preop))) == 0L,
+      NA_integer_,
+      rowSums(
+        pick(ComorbHeartDisease_Preop:ComorbOtherMedicalCondition_Preop),
+        na.rm = TRUE
+    )
+    ),
+  across(
+      MODEMQ1_Preop:MODEMQ6_Preop,
+      ~ case_when(
+        str_detect(.x, "Extremely") ~ 4,
+        str_detect(.x, "Very") ~ 3,
+        str_detect(.x, "Somewhat") ~ 2,
+        str_detect(.x, "Slightly") ~ 1,
+        str_detect(.x, "Not.likely") ~ 0,
+        str_detect(.x, "applicable") ~ NA,
+        is.na(.x) ~ NA
+      )
+    ),
+    MODEMExp = if_else(
+      rowSums(!is.na(pick(MODEMQ1_Preop:MODEMQ6_Preop))) == 0,
+      NA_integer_,
+      rowSums(
+        pick(MODEMQ1_Preop:MODEMQ6_Preop),
+        na.rm = TRUE
+    )
+    ),
+  
+CRTiming = case_when(
+DateTreatment <= ymd("2022-Nov-02") ~ "Pre",
+DateTreatment >= ymd("2022-Nov-02") ~ "Post"
+),
+CRTiming = forcats::fct(
+  CRTiming,
+  levels = c("Pre","Post")
+),
+)
+
+
+```
+
+```{r}
+
+BearingPlot <- GMKMaster |>
+  ggplot(aes(x = DateTreatment, y = CRTiming)) +
+  geom_point(alpha = 0.6, size = 2) +
+  labs(
+    title = "Cruciate retaining use over time",
+    x = "Date",
+    y = "Before or after first CR use"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+knitr::knit_print(BearingPlot)
+```
+
+```{r}
+#| label: tbl-crflex-demographics
+#| tbl-cap: "Summary of demographics comparing pre vs post flex introduction"
+
+Tableflexdemo <- gtsummary::tbl_summary(
+  GMKMaster |> dplyr::select(
+    CRTiming,
+    AgeAtTreatment,
+    Sex,
+    EducationLevel,
+    mmm_label,
+    SACQ_score,
+    MODEMExp,
+    KOOS12_Pain_TotalScore_Preop,
+    VR12_Physical_TotalScore_Preop,
+    VR12_Mental_TotalScore_Preop,
+    TreatmentStatus,
+    DateTreatment
+  ),
+  by = "CRTiming",
+  missing = "no",
+  statistic = list(
+    DateTreatment ~ "{min} - {max}"
+  )
+) |>
+  add_overall()
+
+knitr::knit_print(Tableflexdemo)
+```
+
+# Complications
+
+```{r}
+GMKComp <- GMKMaster |> dplyr::select(
+  TreatmentID,
+  CRTiming,
+  DateTreatment,
+  TreatmentStatus,
+  TreatmentStatusNotes,
+  DateStatusChange,
+  ComplicationOccurrence,
+  DateOfOccurrence,
+  ComplicationNature,
+  ReoperationProcedure,
+  ReoperationProcedureDate
+) |> mutate(
+  ComplicationOccur2 = if_else(
+    is.na(ComplicationOccurrence),
+    "No",
+    ComplicationOccurrence
+  ),
+  OccurDelay =  as.numeric(as.duration(interval(ymd(DateTreatment), ymd(DateOfOccurrence))),"days"),
+  Followup = if_else(
+    is.na(DateStatusChange),
+    as.numeric(as.duration(interval(ymd(DateTreatment), ymd(CurrentDate))),"days"),
+    as.numeric(as.duration(interval(ymd(DateTreatment), ymd(DateStatusChange))),"days")
+  )
+)
+
+
+```
+
+```{r}
+#| label: tbl-comp
+#| tbl-cap: "Summary of complications incidence after surgery separated by group"
+
+TableGMKComp <- gtsummary::tbl_summary(
+  GMKComp |> dplyr::select(
+    CRTiming,
+    ComplicationOccur2,
+    OccurDelay,
+    Followup
+  ),
+  by = "CRTiming",
+  missing = "no"
+) |>
+  modify_footnote_body(
+    footnote = "Days",
+    columns = "label",
+    rows = variable == c("OccurDelay","Followup") & row_type == "label"
+  ) |> add_overall()
+
+knitr::knit_print(TableGMKComp)
+
+
+```
+
+Adverse events were detected in 16% of surgical cases performed by SM over the life of the registry as shown in @tbl-comp, with an average detection with 30 days of surgery.
+
+Write complications table for SM review
+
+```{r}
+#| label: write-complic
+#| execute: false
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+
+# CRFlexComp <- googlesheets4::gs4_create(
+#   "AORA_CRFlexComp",
+#   sheets = "Complications"
+# )
+
+sheet_write(
+  GMKComp |> dplyr::select(
+    -ComplicationOccurrence
+  ) |> filter(
+    ComplicationOccur2 != "No"
+  ),
+  ss = "https://docs.google.com/spreadsheets/d/13AcKTFGWuz_qZw3mNBRKSrta0CIEflUDZPohfLF26Cg?usp=drive_fs",
+  sheet = "Complications"
+)
+
+```
+
+# Patient reported outcomes
+
+```{r}
+
+CRKOOSADL <- GMKMaster |> ggplot(
+  aes(y = KOOS12_DailyLiving_TotalScore_3months, x = CRTiming)) +
+  geom_dots() +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  )
+
+knitr::knit_print(CRKOOSADL)
+```
+
+Ran a multinomial logistic model to assess differences in kneeling difficulty at 3months followup before vs after introduction of flex bearing
+
+```{r}
+
+ancova_tbl <- function(data, outcome, baseline_cov, label) {
+  
+  formula <- as.formula(paste(outcome, "~ CRTiming+", baseline_cov, "+ AgeAtTreatment + Sex"))
+  
+  lm(formula, data = data) |>
+    tbl_regression(
+      include   = "CRTiming",
+      intercept = FALSE,
+      label     = list(CRTiming ~ label)
+    ) |>
+    bold_p(t = 0.05) |>
+    bold_labels()
+}
+```
+
+```{r}
+
+tbl_dl <- ancova_tbl(
+  data         = GMKMaster,
+  outcome      = "KOOS12_DailyLiving_TotalScore_3months",
+  baseline_cov = "KOOS12_DailyLiving_TotalScore_Preop",
+  label        = "Daily Living"
+)
+
+tbl_pain <- ancova_tbl(
+  data         = GMKMaster,
+  outcome      = "KOOS12_Pain_TotalScore_3months",
+  baseline_cov = "KOOS12_Pain_TotalScore_Preop",
+  label        = "Pain"
+)
+
+tbl_total <- ancova_tbl(
+  data         = GMKMaster,
+  outcome      = "KOOS12_Summary_TotalScore_3months",
+  baseline_cov = "KOOS12_Summary_TotalScore_Preop",
+  label        = "Total"
+)
+
+# ancova_KOOS12ADL <- lm( ~ CRTiming + KOOS12_DailyLiving_TotalScore_Preop + AgeAtTreatment + Sex, data = )
+```
+
+```{r}
+#| label: tbl-proms
+#| tbl-cap: "ANCOVA: 3month KOOS scores adjusted for baseline"
+
+
+tbl_stacked <- tbl_stack(
+  tbls         = list(tbl_dl, tbl_pain, tbl_total),
+  group_header = c("Daily Living", "Pain", "Total")
+) |>
+  modify_table_body(
+    ~ .x |>
+        filter(row_type == "level" & label == "Post") |>
+        mutate(
+          label         = groupname_col,
+          groupname_col = "",
+          row_type      = "tbl_summary-str:header-nlevel"
+        )
+  ) |> modify_footnote(
+    update = everything() ~ "β = adjusted mean difference (Treatment vs Control); adjusted for baseline subscale score."
+  )
+
+
+
+knitr::knit_print(tbl_stacked)
+
+```
+
+```{r}
+#| label: fig-kneeling
+#| fig-cap: "Response patterns of kneeling and daily living difficulty at 3months before vs after introduction of flex bearing"
+
+# Calculate proportions
+KneelPlotData <- GMKMaster |>filter(
+    !is.na(Kneeling_3months)
+  ) |> mutate(
+    Kneeling_3months = forcats::fct(
+      Kneeling_3months,
+      levels = c("Extreme", "Severe","Moderate","Mild","None"))
+  ) |>  count(CRTiming, Kneeling_3months) |>
+  group_by(CRTiming) |>
+  mutate(
+    proportion = n / sum(n),
+    percentage = round(proportion * 100, 1)
+  ) |>
+  ungroup() 
+
+# Create stacked barplot
+KneelPlot <- ggplot(KneelPlotData, aes(x = CRTiming, y = proportion, fill = Kneeling_3months)) +
+  geom_col(position = "fill") +
+  geom_text(
+    aes(label = paste0(percentage, "%")),
+    position = position_fill(vjust = 0.5),
+    color = "white",
+    size = 3.5
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "CRTiming",
+    y = "Proportion",
+    fill = "Kneeling difficulty at 3month followup"
+  ) +
+  theme_minimal()
+
+
+# Calculate proportions
+ADLPlotData <- GMKMaster |> dplyr::select(
+  TreatmentID,
+  CRTiming,
+  contains("DailyLiving") & contains("3months")
+  ) |> mutate(
+    across(
+      c(KOOS12DailyLivingQ1_3months,KOOS12DailyLivingQ3_3months,KOOS12DailyLivingQ4_3months),
+      ~forcats::fct(
+        .,
+        levels = c("Extreme", "Severe", "Moderate", "Mild", "None")
+    )
+  )
+  ) 
+
+ADLPlotData1 <- ADLPlotData |>  count(CRTiming, KOOS12DailyLivingQ1_3months) |> filter(
+    !is.na(KOOS12DailyLivingQ1_3months)
+  ) |> group_by(CRTiming) |>
+  mutate(
+    proportion = n / sum(n),
+    percentage = round(proportion * 100, 1)
+  ) |>
+  ungroup()
+
+ADLPlotData2 <- ADLPlotData |>  count(CRTiming, KOOS12DailyLivingQ3_3months) |> filter(
+    !is.na(KOOS12DailyLivingQ3_3months)
+  ) |> group_by(CRTiming) |>
+  mutate(
+    proportion = n / sum(n),
+    percentage = round(proportion * 100, 1)
+  ) |>
+  ungroup()
+
+ADLPlotData3 <- ADLPlotData |>  count(CRTiming, KOOS12DailyLivingQ4_3months) |> filter(
+    !is.na(KOOS12DailyLivingQ4_3months)
+  ) |> group_by(CRTiming) |>
+  mutate(
+    proportion = n / sum(n),
+    percentage = round(proportion * 100, 1)
+  ) |>
+  ungroup()
+
+
+# Create stacked barplot
+ADLPlot1 <- ggplot(ADLPlotData1, aes(x = CRTiming, y = proportion, fill = KOOS12DailyLivingQ1_3months)) +
+  geom_col(position = "fill") +
+  geom_text(
+    aes(label = paste0(percentage, "%")),
+    position = position_fill(vjust = 0.5),
+    color = "white",
+    size = 3.5
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "CRTiming",
+    y = "Proportion",
+    fill = "Sit-stand difficulty at 3month followup"
+  ) +
+  theme_minimal()
+
+# Create stacked barplot
+ADLPlot2 <- ggplot(ADLPlotData2, aes(x = CRTiming, y = proportion, fill = KOOS12DailyLivingQ3_3months)) +
+  geom_col(position = "fill") +
+  geom_text(
+    aes(label = paste0(percentage, "%")),
+    position = position_fill(vjust = 0.5),
+    color = "white",
+    size = 3.5
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "CRTiming",
+    y = "Proportion",
+    fill = "Vehicle egress difficulty at 3month followup"
+  ) +
+  theme_minimal()
+
+# Create stacked barplot
+ADLPlot3 <- ggplot(ADLPlotData3, aes(x = CRTiming, y = proportion, fill = KOOS12DailyLivingQ4_3months)) +
+  geom_col(position = "fill") +
+  geom_text(
+    aes(label = paste0(percentage, "%")),
+    position = position_fill(vjust = 0.5),
+    color = "white",
+    size = 3.5
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "CRTiming",
+    y = "Proportion",
+    fill = "Twisting difficulty at 3month followup"
+  ) +
+  theme_minimal()
+
+(KneelPlot + ADLPlot1) / (ADLPlot2 + ADLPlot3)
+```
+
+```{r}
+
+# GMKSubset1 <- GMKSubset |> mutate(
+#   KneelOutcome = relevel(factor(Kneeling_3months), ref = "None")
+# )
+
+# Fit multinomial logistic regression
+# Adjusting for age and sex
+# The first level of categorical_outcome will be the reference category
+MultiNommodel <- nnet::multinom(
+  formula = Kneeling_3months ~ CRTiming + AgeAtTreatment + Sex,
+  data = GMKMaster
+)
+
+```
+
+```{r}
+#| label: fig-kneellog
+#| fig-cap: "Adjusted odds ratios before vs after introduction of flex bearing"
+
+# Extract tidy results with odds ratios and confidence intervals
+KneelResults <- MultiNommodel |>
+  tidy(conf.int = TRUE, exponentiate = TRUE) |>
+  filter(str_detect(term, "CRTiming")) |>
+  mutate(
+    across(c(estimate, conf.low, conf.high), ~round(., 2)),
+    p.value = round(p.value, 4)
+  ) |>
+  select(
+    outcome = y.level,
+    term,
+    odds_ratio = estimate,
+    ci_lower = conf.low,
+    ci_upper = conf.high,
+    p.value
+  )
+
+
+# Optional: Create a forest plot of the odds ratios
+KneeMultinomPlot <- ggplot(KneelResults, aes(x = odds_ratio, y = outcome)) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "gray50") +
+  geom_point(size = 3) +
+  geom_errorbar(
+    aes(xmin = ci_lower, xmax = ci_upper),
+    height = 0.2,
+    #orientation = "x"
+  ) +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Outcome Level",
+
+  ) +
+  theme_minimal()
+
+KneeMultinomPlot
+
+```
