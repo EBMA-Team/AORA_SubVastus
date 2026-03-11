@@ -425,7 +425,6 @@ The Arthroplasty Outcomes in Regional Australia (AORA) registry has been in oper
 
 Flowcharts as per STROBE [@Vandenbroucke2007] and RECORD [@Benchimol2015] guidelines were generated for treatments enrolled into the Registry. Followup was set to eligibility at 3months followup.
 
-Need to identify GMKSubset to flag in STROBEInput for flowchart
 
 ```{r}
 
