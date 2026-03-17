@@ -171,106 +171,122 @@ gs4_auth(token = drive_token())
 
 
 
-ComplicTable <- googlesheets4::read_sheet(
+# ComplicTable <- googlesheets4::read_sheet(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Complications",
+#   col_names = TRUE,
+#   col_types = "TccDccDc"
+#   )
+# 
+# 
+# #To match to acctData
+# PatientTable <- googlesheets4::range_read(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Patient",
+#   range = "A7:P",
+#   col_names = FALSE,
+#   col_types = "DccccDcccDciccci"
+#   )
+# 
+# 
+# Patient_Col <- c(
+#   "PatientCreationDate",
+#   "PatientID",
+#   "LastName",
+#   "FirstName",
+#   "AlternateID",
+#   "DateOfBirth",
+#   "Sex",
+#   "RegistryStatus",
+#   "RegistryStatusNotes",
+#   "DateRegistryStatus",
+#   "NotificationMethod",
+#   "NoTreatmentRecords",
+#   "Email",
+#   "Phone",
+#   "PostCode",
+#   "TrueNoTreatments"
+# )
+# 
+# colnames(PatientTable) <- Patient_Col
+# 
+# 
+# MonitorPlan <- googlesheets4::range_read(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Monitor Module",
+#   range = "A1:O",
+#   col_names = TRUE,
+#   col_types = "ccccDTtincTccii"
+#   )
+# 
+# 
+# MonitorLog <- googlesheets4::range_read(
+#   ss = SheetIDs$DbSS,
+#   sheet = "MonitorModuleLog",
+#   range = "A1:K",
+#   col_names = TRUE,
+#   col_types = "Tcicccccccc"
+#   )
+# 
+# MonitorResponse <- googlesheets4::range_read(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Monitoring",
+#   range = "A1:Q",
+#   col_names = TRUE,
+#   col_types = "TccccccccccnccDic"
+#   )
+# 
+# colnames(MonitorResponse) <- c(
+#   "TimeStamp",
+#   "Issues",
+#   "IssueDescription",
+#   "ProviderConsult",
+#   "RatingRecovery",
+#   "RatingPainControl",
+#   "WorstPain24",
+#   "Painkillers",
+#   "NSAIDs",
+#   "PainkillersOther",
+#   "OtherDescription",
+#   "WalkDistance",
+#   "FormID",
+#   "TreatmentID",
+#   "TreatmentDate",
+#   "DaysAfterSurgery",
+#   "TreatmentIDDays"
+# )
+# 
+# IntHistory <- googlesheets4::range_read(
+#   ss = SheetIDs$IntHistory,
+#   sheet = "AORA - Medical History_RawData", 
+#   range = "A4:CO",
+#   col_names = FALSE
+#   )
+# 
+# IntHistoryCol <- googlesheets4::range_read(
+#   ss = SheetIDs$IntHistory,
+#   sheet = "AORA - Medical History_RawData", 
+#   range = "A3:CO3",
+#   col_names = FALSE
+#   )
+# 
+#  colnames(IntHistory) <- IntHistoryCol
+ 
+TreatTable <- googlesheets4::range_read(
   ss = SheetIDs$DbSS,
-  sheet = "Complications",
-  col_names = TRUE,
-  col_types = "TccDccDc"
-  )
-
-
-#To match to acctData
-PatientTable <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Patient",
-  range = "A7:P",
-  col_names = FALSE,
-  col_types = "DccccDcccDciccci"
-  )
-
-
-Patient_Col <- c(
-  "PatientCreationDate",
-  "PatientID",
-  "LastName",
-  "FirstName",
-  "AlternateID",
-  "DateOfBirth",
-  "Sex",
-  "RegistryStatus",
-  "RegistryStatusNotes",
-  "DateRegistryStatus",
-  "NotificationMethod",
-  "NoTreatmentRecords",
-  "Email",
-  "Phone",
-  "PostCode",
-  "TrueNoTreatments"
-)
-
-colnames(PatientTable) <- Patient_Col
-
-
-MonitorPlan <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Monitor Module",
-  range = "A1:O",
-  col_names = TRUE,
-  col_types = "ccccDTtincTccii"
-  )
-
-
-MonitorLog <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "MonitorModuleLog",
-  range = "A1:K",
-  col_names = TRUE,
-  col_types = "Tcicccccccc"
-  )
-
-MonitorResponse <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Monitoring",
-  range = "A1:Q",
-  col_names = TRUE,
-  col_types = "TccccccccccnccDic"
-  )
-
-colnames(MonitorResponse) <- c(
-  "TimeStamp",
-  "Issues",
-  "IssueDescription",
-  "ProviderConsult",
-  "RatingRecovery",
-  "RatingPainControl",
-  "WorstPain24",
-  "Painkillers",
-  "NSAIDs",
-  "PainkillersOther",
-  "OtherDescription",
-  "WalkDistance",
-  "FormID",
-  "TreatmentID",
-  "TreatmentDate",
-  "DaysAfterSurgery",
-  "TreatmentIDDays"
-)
-
-IntHistory <- googlesheets4::range_read(
-  ss = SheetIDs$IntHistory,
-  sheet = "AORA - Medical History_RawData", 
-  range = "A4:CO",
+  sheet = "Treatment", 
+  range = "A7:Z",
   col_names = FALSE
   )
 
-IntHistoryCol <- googlesheets4::range_read(
-  ss = SheetIDs$IntHistory,
-  sheet = "AORA - Medical History_RawData", 
-  range = "A3:CO3",
+TreatTableCol <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Treatment", 
+  range = "A1:Z1",
   col_names = FALSE
   )
 
- colnames(IntHistory) <- IntHistoryCol
+ colnames(TreatTable) <- TreatTableCol
  
  
 
@@ -417,6 +433,76 @@ STROBEInput <- openxlsx2::wb_to_df(
   detectDates = TRUE
   )
 
+```
+
+#Snapshot validation
+
+```{r}
+# Identify dropped records
+dropped_records <- TreatTable |> filter(
+  lubridate::ymd(DateTreatmentRecordCreation) <= ymd(CurrentDate)
+) |> mutate(
+  TreatmentID = as.character(
+    TreatmentID
+    )
+  ) |> anti_join(
+      Snapshot, by = "TreatmentID"
+      )
+
+# Row count summary
+epoxy(
+  "TreatTable (live):   {nrow(TreatTable)} records",
+  "Snapshot (pipeline): {nrow(Snapshot)} records",
+  "Dropped records:     {nrow(dropped_records)} records",
+  .sep = "\n"
+)
+```
+
+```{r}
+
+STROBEInc <- STROBEFlow |> filter(
+  !is.na(followup)
+)
+# Identify dropped records
+DroppedKneeIntra <- TreatTable |> filter(
+  TreatmentID %in% STROBEInc$followup
+) |> mutate(
+  TreatmentID = as.character(
+    TreatmentID
+    )
+  ) |> anti_join(
+      KneeIntraop, join_by("TreatmentID" == "Treatment ID")
+      )
+
+# Row count summary
+epoxy(
+  "TreatTable (live):   {nrow(TreatTable)} records",
+  "KneeIntraop : {nrow(KneeIntraop)} records",
+  "Dropped records:     {nrow(DroppedKneeIntra)} records",
+  .sep = "\n"
+)
+```
+```{r}
+
+
+# Identify dropped records
+SnapIntrDrop <- KneeIntraop |> filter(
+  !is.na(Anaesthetic)
+)  |> anti_join(
+      Snapshot |> filter(
+  Surgeon == "SM",
+  SurgicalTreatment2 == "Surgical",
+  RegistryCohortName == "KneeArthritis",
+), join_by("Treatment ID" == "TreatmentID")
+      )
+
+# Row count summary
+epoxy(
+  "KneeIntraop : {nrow(KneeIntraop)} records",
+  "Snapshot (pipeline):   {nrow(Snapshot)} records",
+  "Dropped records:     {nrow(SnapIntrDrop)} records",
+  .sep = "\n"
+)
 ```
 
 # Context
