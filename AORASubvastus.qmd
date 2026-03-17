@@ -271,6 +271,8 @@ IntHistoryCol <- googlesheets4::range_read(
   )
 
  colnames(IntHistory) <- IntHistoryCol
+ 
+ 
 
 ```
 
@@ -423,7 +425,7 @@ The Arthroplasty Outcomes in Regional Australia (AORA) registry has been in oper
 
 # Recruitment Flow
 
-Flowcharts as per STROBE [@Vandenbroucke2007] and RECORD [@Benchimol2015] guidelines were generated for treatments enrolled into the Registry. Followup was set to eligibility at 3months followup.
+Flowcharts as per STROBE [@Vandenbroucke2007] and RECORD [@Benchimol2015] guidelines were generated for treatments enrolled into the Registry. Followup was set to eligibility at 6months followup.
 
 
 ```{r}
@@ -442,7 +444,7 @@ STROBEFlow <- STROBEInput |> left_join(
         TreatmentID,
         CombID,
         EligibleAtPreop,
-        EligibleAtx3months,
+        EligibleAtx6months,
         SurgicalTreatment2
       ) |> 
       # Convert all date columns to date format
@@ -480,7 +482,7 @@ followup = if_else(
   NA_character_
 ),
 lost_followup = if_else(
-  EligibleAtx3months != "Yes",
+  EligibleAtx6months != "Yes",
   "Not eligible for followup",
   NA_character_
 ),
@@ -764,10 +766,10 @@ SubvKOOSTotal <- SubVasMaster |> reframe(
   ADL_6wk         = c(sum(!is.na(KOOS12_DailyLiving_TotalScore_6weeks)),   quantile(KOOS12_DailyLiving_TotalScore_6weeks,   c(0.25,0.5,0.75), na.rm = TRUE)),
   Quality_6wk     = c(sum(!is.na(KOOS12_Quality_TotalScore_6weeks)),        quantile(KOOS12_Quality_TotalScore_6weeks,        c(0.25,0.5,0.75), na.rm = TRUE)),
   Total_6wk       = c(sum(!is.na(KOOS12_Summary_TotalScore_6weeks)),        quantile(KOOS12_Summary_TotalScore_6weeks,        c(0.25,0.5,0.75), na.rm = TRUE)),
-  Pain_3mth       = c(sum(!is.na(KOOS12_Pain_TotalScore_3months)),          quantile(KOOS12_Pain_TotalScore_3months,          c(0.25,0.5,0.75), na.rm = TRUE)),
-  ADL_3mth        = c(sum(!is.na(KOOS12_DailyLiving_TotalScore_3months)),   quantile(KOOS12_DailyLiving_TotalScore_3months,   c(0.25,0.5,0.75), na.rm = TRUE)),
-  Quality_3mth    = c(sum(!is.na(KOOS12_Quality_TotalScore_3months)),       quantile(KOOS12_Quality_TotalScore_3months,       c(0.25,0.5,0.75), na.rm = TRUE)),
-  Total_3mth      = c(sum(!is.na(KOOS12_Summary_TotalScore_3months)),       quantile(KOOS12_Summary_TotalScore_3months,       c(0.25,0.5,0.75), na.rm = TRUE))
+  Pain_6mth       = c(sum(!is.na(KOOS12_Pain_TotalScore_6months)),          quantile(KOOS12_Pain_TotalScore_6months,          c(0.25,0.5,0.75), na.rm = TRUE)),
+  ADL_6mth        = c(sum(!is.na(KOOS12_DailyLiving_TotalScore_6months)),   quantile(KOOS12_DailyLiving_TotalScore_6months,   c(0.25,0.5,0.75), na.rm = TRUE)),
+  Quality_6mth    = c(sum(!is.na(KOOS12_Quality_TotalScore_6months)),       quantile(KOOS12_Quality_TotalScore_6months,       c(0.25,0.5,0.75), na.rm = TRUE)),
+  Total_6mth      = c(sum(!is.na(KOOS12_Summary_TotalScore_6months)),       quantile(KOOS12_Summary_TotalScore_6months,       c(0.25,0.5,0.75), na.rm = TRUE))
 )
 
 
@@ -775,7 +777,7 @@ SubvKOOSTotal <- SubVasMaster |> reframe(
 
 ```{r}
 #| label: tbl-koos
-#| tbl-cap: "Summary of KOOS subscales at 6 weeks and 3months"
+#| tbl-cap: "Summary of KOOS subscales at 6 weeks and 6months"
 
 
 SubvKOOSTotal |>
@@ -786,18 +788,18 @@ SubvKOOSTotal |>
     ADL_6wk     = "ADL",
     Quality_6wk = "Quality",
     Total_6wk   = "Total",
-    Pain_3mth   = "Pain",
-    ADL_3mth    = "ADL",
-    Quality_3mth = "Quality",
-    Total_3mth  = "Total"
+    Pain_6mth   = "Pain",
+    ADL_6mth    = "ADL",
+    Quality_6mth = "Quality",
+    Total_6mth  = "Total"
   ) |>
   tab_spanner(
     label   = "6 Weeks",
     columns = c(Pain_6wk, ADL_6wk, Quality_6wk, Total_6wk)
   ) |>
   tab_spanner(
-    label   = "3 Months",
-    columns = c(Pain_3mth, ADL_3mth, Quality_3mth, Total_3mth)
+    label   = "6 Months",
+    columns = c(Pain_6mth, ADL_6mth, Quality_6mth, Total_6mth)
   ) |>
   fmt_number(
     columns  = everything(),
@@ -822,23 +824,23 @@ SubvKOOSTotal |>
 
 ```{r}
 
-levelskneel <- SubVasMaster |> distinct(Kneeling_3months)
+levelskneel <- SubVasMaster |> distinct(Kneeling_6months)
 
 SVPlotData <- SubVasMaster |> filter(
-  !is.na(Kneeling_3months)
+  !is.na(Kneeling_6months)
 ) |> mutate(
-  Kneeling_3months = str_trim(Kneeling_3months),
-  Kneeling_3months = forcats::fct(
-    Kneeling_3months,
+  Kneeling_6months = str_trim(Kneeling_6months),
+  Kneeling_6months = forcats::fct(
+    Kneeling_6months,
     levels = c("Extreme","Severe","Moderate","Mild","None")
   )
-) |>  count(Kneeling_3months) |> mutate(
+) |>  count(Kneeling_6months) |> mutate(
   proportion = n / sum(n),
   percentage = round(proportion * 100, 1)
 ) 
 
 # Create stacked barplot
-ggplot(SVPlotData, aes(x = "", y = proportion, fill = Kneeling_3months)) +
+ggplot(SVPlotData, aes(x = "", y = proportion, fill = Kneeling_6months)) +
   geom_col() +
   geom_text(
     aes(label = paste0(percentage, "%")),
