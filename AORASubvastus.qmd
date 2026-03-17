@@ -473,7 +473,7 @@ STROBEFlow <- STROBEInput |> left_join(
     NA_character_
   ),
 exclusion2 = case_when(
-  !is.na(induction) & is.na(Approach) ~ "No data entered",
+  #!is.na(induction) & is.na(Approach) ~ "No data entered",
   !is.na(induction) & !is.na(Approach) & stringr::str_detect(Approach, "vastus", negate = TRUE) ~ "Not approach of interest",
 ),
 followup = if_else(
