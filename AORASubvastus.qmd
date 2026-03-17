@@ -852,7 +852,7 @@ ggplot(SVPlotData, aes(x = "", y = proportion, fill = Kneeling_6months)) +
   labs(
     x = NULL,
     y = "Proportion",
-    fill = "Kneeling difficulty at 3 month followup"
+    fill = "Kneeling difficulty at 6month followup"
   ) +
   theme_minimal()
 
