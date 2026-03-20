@@ -171,122 +171,122 @@ gs4_auth(token = drive_token())
 
 
 
-# ComplicTable <- googlesheets4::read_sheet(
-#   ss = SheetIDs$DbSS,
-#   sheet = "Complications",
-#   col_names = TRUE,
-#   col_types = "TccDccDc"
-#   )
-# 
-# 
-# #To match to acctData
-# PatientTable <- googlesheets4::range_read(
-#   ss = SheetIDs$DbSS,
-#   sheet = "Patient",
-#   range = "A7:P",
-#   col_names = FALSE,
-#   col_types = "DccccDcccDciccci"
-#   )
-# 
-# 
-# Patient_Col <- c(
-#   "PatientCreationDate",
-#   "PatientID",
-#   "LastName",
-#   "FirstName",
-#   "AlternateID",
-#   "DateOfBirth",
-#   "Sex",
-#   "RegistryStatus",
-#   "RegistryStatusNotes",
-#   "DateRegistryStatus",
-#   "NotificationMethod",
-#   "NoTreatmentRecords",
-#   "Email",
-#   "Phone",
-#   "PostCode",
-#   "TrueNoTreatments"
-# )
-# 
-# colnames(PatientTable) <- Patient_Col
-# 
-# 
-# MonitorPlan <- googlesheets4::range_read(
-#   ss = SheetIDs$DbSS,
-#   sheet = "Monitor Module",
-#   range = "A1:O",
-#   col_names = TRUE,
-#   col_types = "ccccDTtincTccii"
-#   )
-# 
-# 
-# MonitorLog <- googlesheets4::range_read(
-#   ss = SheetIDs$DbSS,
-#   sheet = "MonitorModuleLog",
-#   range = "A1:K",
-#   col_names = TRUE,
-#   col_types = "Tcicccccccc"
-#   )
-# 
-# MonitorResponse <- googlesheets4::range_read(
-#   ss = SheetIDs$DbSS,
-#   sheet = "Monitoring",
-#   range = "A1:Q",
-#   col_names = TRUE,
-#   col_types = "TccccccccccnccDic"
-#   )
-# 
-# colnames(MonitorResponse) <- c(
-#   "TimeStamp",
-#   "Issues",
-#   "IssueDescription",
-#   "ProviderConsult",
-#   "RatingRecovery",
-#   "RatingPainControl",
-#   "WorstPain24",
-#   "Painkillers",
-#   "NSAIDs",
-#   "PainkillersOther",
-#   "OtherDescription",
-#   "WalkDistance",
-#   "FormID",
-#   "TreatmentID",
-#   "TreatmentDate",
-#   "DaysAfterSurgery",
-#   "TreatmentIDDays"
-# )
-# 
-# IntHistory <- googlesheets4::range_read(
-#   ss = SheetIDs$IntHistory,
-#   sheet = "AORA - Medical History_RawData", 
-#   range = "A4:CO",
-#   col_names = FALSE
-#   )
-# 
-# IntHistoryCol <- googlesheets4::range_read(
-#   ss = SheetIDs$IntHistory,
-#   sheet = "AORA - Medical History_RawData", 
-#   range = "A3:CO3",
-#   col_names = FALSE
-#   )
-# 
-#  colnames(IntHistory) <- IntHistoryCol
+ComplicTable <- googlesheets4::read_sheet(
+  ss = SheetIDs$DbSS,
+  sheet = "Complications",
+  col_names = TRUE,
+  col_types = "TccDccDc"
+  )
+
+
+#To match to acctData
+PatientTable <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Patient",
+  range = "A7:P",
+  col_names = FALSE,
+  col_types = "DccccDcccDciccci"
+  )
+
+
+Patient_Col <- c(
+  "PatientCreationDate",
+  "PatientID",
+  "LastName",
+  "FirstName",
+  "AlternateID",
+  "DateOfBirth",
+  "Sex",
+  "RegistryStatus",
+  "RegistryStatusNotes",
+  "DateRegistryStatus",
+  "NotificationMethod",
+  "NoTreatmentRecords",
+  "Email",
+  "Phone",
+  "PostCode",
+  "TrueNoTreatments"
+)
+
+colnames(PatientTable) <- Patient_Col
+
+
+MonitorPlan <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Monitor Module",
+  range = "A1:O",
+  col_names = TRUE,
+  col_types = "ccccDTtincTccii"
+  )
+
+
+MonitorLog <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "MonitorModuleLog",
+  range = "A1:K",
+  col_names = TRUE,
+  col_types = "Tcicccccccc"
+  )
+
+MonitorResponse <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Monitoring",
+  range = "A1:Q",
+  col_names = TRUE,
+  col_types = "TccccccccccnccDic"
+  )
+
+colnames(MonitorResponse) <- c(
+  "TimeStamp",
+  "Issues",
+  "IssueDescription",
+  "ProviderConsult",
+  "RatingRecovery",
+  "RatingPainControl",
+  "WorstPain24",
+  "Painkillers",
+  "NSAIDs",
+  "PainkillersOther",
+  "OtherDescription",
+  "WalkDistance",
+  "FormID",
+  "TreatmentID",
+  "TreatmentDate",
+  "DaysAfterSurgery",
+  "TreatmentIDDays"
+)
+
+IntHistory <- googlesheets4::range_read(
+  ss = SheetIDs$IntHistory,
+  sheet = "AORA - Medical History_RawData",
+  range = "A4:CO",
+  col_names = FALSE
+  )
+
+IntHistoryCol <- googlesheets4::range_read(
+  ss = SheetIDs$IntHistory,
+  sheet = "AORA - Medical History_RawData",
+  range = "A3:CO3",
+  col_names = FALSE
+  )
+
+ colnames(IntHistory) <- IntHistoryCol
  
-TreatTable <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Treatment", 
-  range = "A7:Z",
-  col_names = FALSE
-  )
-
-TreatTableCol <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Treatment", 
-  range = "A1:Z1",
-  col_names = FALSE
-  )
-
- colnames(TreatTable) <- TreatTableCol
+# TreatTable <- googlesheets4::range_read(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Treatment", 
+#   range = "A7:Z",
+#   col_names = FALSE
+#   )
+# 
+# TreatTableCol <- googlesheets4::range_read(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Treatment", 
+#   range = "A1:Z1",
+#   col_names = FALSE
+#   )
+# 
+#  colnames(TreatTable) <- TreatTableCol
  
  
 
@@ -739,6 +739,7 @@ Tablesubvasdemo <- gtsummary::tbl_summary(
     AgeAtTreatment,
     Sex,
     EducationLevel,
+    BilateralStatus,
     mmm_label,
     SACQ_score,
     MODEMExp,
@@ -909,6 +910,27 @@ SubvKOOSTotal |>
 
 
 ```{r}
+#| label: text-proms-return-rate-subvastus
+
+overall_rate_sv <- SubVasMaster |>
+  summarise(
+    n_eligible   = n(),
+    n_returned   = sum(!is.na(KOOS12_Pain_TotalScore_6months)),
+    pct_returned = n_returned / n_eligible * 100
+  )
+```
+
+```{epoxy}
+Within the SubVastus cohort, six-month KOOS-12 Pain scores were available 
+for {overall_rate_sv$n_returned} of {overall_rate_sv$n_eligible} patients, 
+representing a 6-month return rate of 
+{round(overall_rate_sv$pct_returned, 1)}%.
+
+``` 
+
+
+
+```{r}
 
 levelskneel <- SubVasMaster |> distinct(Kneeling_6months)
 
@@ -943,6 +965,7 @@ ggplot(SVPlotData, aes(x = "", y = proportion, fill = Kneeling_6months)) +
   theme_minimal()
 
 ```
+
 
 
 
